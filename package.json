@@ -1,0 +1,19 @@
+{
+  "name": "aprende-ajedrez",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "chess.js": "^1.0.0",
+    "firebase": "^10.12.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.3.3"
+  }
+}

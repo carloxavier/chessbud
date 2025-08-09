@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Aprende Ajedrez Jugando</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            overscroll-behavior: none;
+        }
+        h1, h2, h3 {
+            font-family: 'Fredoka One', cursive;
+        }
+        .chess-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 90vw;
+            height: 90vw;
+            max-width: 500px;
+            max-height: 500px;
+            border: 10px solid #8b5cf6;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        .square {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .square.light { background-color: #f3e8ff; }
+        .square.dark { background-color: #c4b5fd; }
+        .piece {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            cursor: pointer;
+            line-height: 1;
+            user-select: none;
+        }
+        .piece.selected { 
+            filter: drop-shadow(0 0 8px #f59e0b); 
+            transform: scale(1.1); 
+        }
+        .highlight { background-color: rgba(250, 204, 21, 0.7) !important; border: 3px dashed #f59e0b; }
+        .goal-square::after {
+            content: '★';
+            position: absolute;
+            font-size: 2.5rem;
+            color: #f59e0b;
+            text-shadow: 0 0 5px white;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+        .control-button { transition: all 0.2s ease-in-out; }
+        .control-button:hover:not(.disabled) { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .control-button.active { background-color: #8b5cf6 !important; color: white !important; }
+        .control-button.disabled {
+            cursor: not-allowed;
+            background-color: #e5e7eb;
+            opacity: 0.7;
+        }
+        #gemini-output { min-height: 120px; }
+        .turn-indicator {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .nav-piece {
+            font-size: 2rem;
+            color: #a78bfa;
+            transition: all 0.3s ease;
+        }
+        .nav-piece.active {
+            color: #7c3aed;
+            transform: scale(1.2);
+        }
+        .nav-piece.completed {
+            color: #22c55e;
+        }
+        .lesson-step {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #d1d5db;
+            transition: all 0.3s ease;
+        }
+        .lesson-step.active {
+            background-color: #7c3aed;
+            transform: scale(1.5);
+        }
+    </style>
+  <script type="module" crossorigin src="./assets/index-BTH3GgZo.js"></script>
+</head>
+<body class="bg-blue-50 text-gray-800 flex flex-col items-center min-h-screen p-4">
+
+    <div id="auth-container" class="absolute top-4 right-4"></div>
+
+    <div class="text-center mb-4 mt-4">
+        <svg class="mx-auto h-32 w-auto" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="120" height="120" fill="white"/>
+            <path d="M85.2997 50.8591C85.2997 51.7445 84.5819 52.4623 83.6965 52.4623V52.4623C82.7486 52.4623 82.0077 53.2803 82.1012 54.2235L85.613 89.6595C85.8143 91.6903 87.5226 93.2377 89.5634 93.2377H90.9847C92.3922 93.2377 93.5331 94.3786 93.5331 95.786V95.786C93.5331 97.1934 92.3922 98.3344 90.9847 98.3344H26.6849C25.2775 98.3344 24.1366 97.1934 24.1366 95.786V95.786C24.1366 94.3786 25.2775 93.2377 26.6849 93.2377H28.0146C30.0016 93.2377 31.6672 91.7358 31.872 89.7593L35.5751 54.0176C35.6612 53.1858 35.0088 52.4623 34.1726 52.4623V52.4623C33.3939 52.4623 32.7626 51.831 32.7626 51.0523V49.9139C32.7626 48.5065 33.9035 47.3656 35.3109 47.3656H82.7513C84.1588 47.3656 85.2997 48.5065 85.2997 49.9139V50.8591Z" fill="#FBD51D"/>
+            <ellipse cx="46.8767" cy="68.7334" rx="3.13656" ry="4.11674" fill="#221E54"/>
+            <ellipse cx="68.8326" cy="68.7334" rx="3.13656" ry="4.11674" fill="#221E54"/>
+            <path d="M52.9537 74.2224C54.7181 76.8362 59.2269 80.4955 63.1476 74.2224" stroke="#221E55" stroke-width="2" stroke-linecap="round"/>
+            <path d="M60.6201 16C64.486 16.0001 67.6201 19.1341 67.6201 23V30.1143H72.6826V22.7002C72.6828 18.9999 75.6825 16.0002 79.3828 16C83.0833 16 86.0838 18.9997 86.084 22.7002V38.7969C86.084 42.6628 82.9498 45.7967 79.084 45.7969H38.5859C34.7199 45.7969 31.5859 42.6629 31.5859 38.7969V22.7002C31.5861 18.9999 34.5858 16.0002 38.2861 16C41.9866 16 44.9871 18.9997 44.9873 22.7002V30.1143H49.752V23C49.752 19.134 52.886 16 56.752 16H60.6201Z" fill="#FBD51D"/>
+            <path d="M21 105C21 102.185 23.282 99.9031 26.0969 99.9031H93.533C96.348 99.9031 98.63 102.185 98.63 105V105H21V105Z" fill="#F6DB3D"/>
+        </svg>
+        <h1 class="text-4xl md:text-5xl text-purple-600 -mt-4">¡Aprende Ajedrez!</h1>
+    </div>
+
+    <!-- Selector de Modo -->
+    <div id="mode-selector" class="flex flex-wrap justify-center gap-3 mb-4">
+        <button data-mode="lessons" class="control-button bg-white p-3 rounded-lg shadow-md text-xl">Aprender Piezas</button>
+        <button data-mode="challenges" id="challenges-mode-button" class="control-button bg-white p-3 rounded-lg shadow-md text-xl">
+            Retos
+        </button>
+        <button data-mode="practice" id="practice-mode-button" class="control-button bg-white p-3 rounded-lg shadow-md text-xl relative">
+            Practicar con IA
+            <span id="lock-icon-practice" class="absolute -top-2 -right-2 text-2xl">🔒</span>
+        </button>
+    </div>
+    
+    <!-- Contenedor de Lecciones -->
+    <div id="lessons-container" class="hidden w-full flex-col items-center">
+        <div id="lesson-progress-nav" class="flex justify-center items-center gap-2 md:gap-4 p-2 bg-purple-100 rounded-full mb-4 w-full max-w-md"></div>
+    </div>
+    
+    <!-- Contenedor de Retos -->
+    <div id="challenges-container" class="hidden w-full flex-col items-center">
+         <div id="challenge-nav" class="flex items-center justify-center gap-4 mb-4">
+            <button id="prev-challenge-button" class="control-button bg-yellow-400 p-2 rounded-full shadow-md text-2xl">◀</button>
+            <div id="challenge-day-display" class="text-xl font-bold text-purple-700"></div>
+            <button id="next-challenge-button" class="control-button bg-yellow-400 p-2 rounded-full shadow-md text-2xl">▶</button>
+         </div>
+    </div>
+
+    <!-- Contenedor de Práctica -->
+    <div id="practice-container" class="hidden w-full flex-col items-center">
+         <button id="new-puzzle-button" class="control-button bg-indigo-500 text-white p-3 rounded-lg shadow-md text-xl mb-4">Nuevo Desafío</button>
+    </div>
+
+    <!-- Mensaje de la lección/juego -->
+    <div id="message-area" class="text-center mb-4 h-12">
+        <h2 class="text-2xl text-purple-700"></h2>
+    </div>
+
+    <div id="board" class="chess-board mb-4"></div>
+    
+    <div id="game-info" class="text-center h-10 mb-4"></div>
+
+    <!-- Contenedor para la respuesta de Gemini -->
+    <div id="gemini-output" class="mt-2 p-4 bg-white rounded-xl shadow-lg w-full max-w-xl text-center hidden flex-col items-center justify-center">
+        <div id="gemini-loading" class="hidden">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
+            <p class="mt-2 text-gray-600">La IA está pensando...</p>
+        </div>
+        <div id="gemini-content" class="text-gray-700 text-lg"></div>
+    </div>
+
+    <!-- Diálogo de finalización de lección -->
+    <div id="completion-dialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl text-center transform scale-95 transition-transform w-full max-w-sm relative">
+            <button id="close-dialog-button" class="absolute top-2 right-4 text-gray-500 hover:text-gray-800 text-4xl leading-none">&times;</button>
+            <h3 id="dialog-title" class="text-3xl font-bold text-purple-600 mb-4">¡Genial!</h3>
+            <p id="dialog-message" class="text-lg text-gray-700 mb-6">Has completado la lección.</p>
+            <div id="dialog-buttons" class="flex flex-col gap-3"></div>
+        </div>
+    </div>
+
+</body>
+</html>
