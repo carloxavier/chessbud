@@ -48,6 +48,7 @@ function loadLesson(): void {
   appState.selectedSquare = null;
   updateLessonNav();
   const lessonData = (lessons as any)[appState.lessonState.piece!][appState.lessonState.type!][0];
+  console.log('Loading lesson:', appState.lessonState.piece, appState.lessonState.type, lessonData);
   appState.lessonState.pieceCoords = lessonData.piece;
   const pieceSquare = document.querySelector(`[data-col='${lessonData.piece[0]}'][data-row='${lessonData.piece[1]}']`) as HTMLElement;
   pieceSquare.innerHTML = `<span class="piece">${lessonPieces[appState.lessonState.piece!].symbol}</span>`;
@@ -63,14 +64,27 @@ function loadLesson(): void {
 }
 
 function handleLessonMove(fromSquare: HTMLElement, toSquare: HTMLElement): void {
+  console.log('Handling lesson move:', appState.lessonState.piece, appState.lessonState.type);
+  // For capture lessons, verify that the destination square contains an enemy piece
+  if (appState.lessonState.type === 'capture') {
+    const enemyPiece = toSquare.querySelector('.piece');
+    if (!enemyPiece) {
+      // No piece to capture, invalid move
+      console.log('Invalid capture: no enemy piece at destination');
+      return;
+    }
+  }
+  
   toSquare.innerHTML = fromSquare.innerHTML;
   fromSquare.innerHTML = '';
   appState.lessonState.inProgress = false;
   document.querySelectorAll('.highlight').forEach((sq) => (sq as HTMLElement).classList.remove('highlight'));
+  console.log('Move completed, showing dialog in 750ms');
   setTimeout(showCompletionDialog, 750);
 }
 
 function showCompletionDialog(): void {
+  console.log('Showing completion dialog for:', appState.lessonState.piece, appState.lessonState.type);
   const currentPieceIndex = pieceOrder.indexOf(appState.lessonState.piece!);
   let nextLessonHandler: () => void;
   let title: string, message: string;
