@@ -65,15 +65,6 @@ function loadLesson(): void {
 
 function handleLessonMove(fromSquare: HTMLElement, toSquare: HTMLElement): void {
   console.log('Handling lesson move:', appState.lessonState.piece, appState.lessonState.type);
-  // For capture lessons, verify that the destination square contains an enemy piece
-  if (appState.lessonState.type === 'capture') {
-    const enemyPiece = toSquare.querySelector('.piece');
-    if (!enemyPiece) {
-      // No piece to capture, invalid move
-      console.log('Invalid capture: no enemy piece at destination');
-      return;
-    }
-  }
   
   toSquare.innerHTML = fromSquare.innerHTML;
   fromSquare.innerHTML = '';
@@ -159,6 +150,7 @@ function showCompletionDialog(): void {
   elements.dialogTitle.textContent = title;
   elements.dialogMessage.textContent = message;
 
+  // Remove all existing click handlers from close button
   const closeButton = elements.closeDialogButton;
   const newCloseButton = closeButton.cloneNode(true) as HTMLButtonElement;
   closeButton.parentNode!.replaceChild(newCloseButton, closeButton);
@@ -166,14 +158,10 @@ function showCompletionDialog(): void {
   // Update the reference in elements
   elements.closeDialogButton = newCloseButton;
   
-  newCloseButton.addEventListener(
-    'click',
-    () => {
-      elements.completionDialog.classList.add('hidden');
-      if (!isFinalLesson) nextLessonHandler();
-    },
-    { once: true },
-  );
+  newCloseButton.addEventListener('click', () => {
+    elements.completionDialog.classList.add('hidden');
+    if (!isFinalLesson) nextLessonHandler();
+  });
 
   elements.completionDialog.classList.remove('hidden');
 }
@@ -388,7 +376,9 @@ function registerEvents(): void {
   });
 
   elements.boardEl.addEventListener('click', (e) => {
-    const clickedSquare = (e.target as HTMLElement).closest('.square') as HTMLElement | null;
+    const target = e.target as HTMLElement;
+    // Make sure we get the square element, not a child element like a piece
+    const clickedSquare = target.closest('.square') as HTMLElement | null;
     if (!clickedSquare) return;
     
     console.log('Board clicked:', {
@@ -396,7 +386,9 @@ function registerEvents(): void {
       lessonInProgress: appState.lessonState.inProgress,
       hasSelectedSquare: !!appState.selectedSquare,
       clickedSquare: clickedSquare.dataset,
-      hasHighlight: clickedSquare.classList.contains('highlight')
+      hasHighlight: clickedSquare.classList.contains('highlight'),
+      targetElement: target.tagName,
+      targetClasses: target.className
     });
 
     if (appState.currentMode === 'lessons') {
@@ -479,9 +471,10 @@ function registerEvents(): void {
     }
   });
 
-  elements.closeDialogButton.addEventListener('click', () => {
-    elements.completionDialog.classList.add('hidden');
-  });
+  // Remove this global handler - we handle close button dynamically in showCompletionDialog
+  // elements.closeDialogButton.addEventListener('click', () => {
+  //   elements.completionDialog.classList.add('hidden');
+  // });
 }
 
 function init(): void {
