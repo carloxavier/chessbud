@@ -80,11 +80,27 @@ function handleLessonMove(fromSquare: HTMLElement, toSquare: HTMLElement): void 
   appState.lessonState.inProgress = false;
   document.querySelectorAll('.highlight').forEach((sq) => (sq as HTMLElement).classList.remove('highlight'));
   console.log('Move completed, showing dialog in 750ms');
-  setTimeout(showCompletionDialog, 750);
+  
+  // Use a more robust approach to ensure the dialog shows
+  setTimeout(() => {
+    try {
+      console.log('About to show completion dialog');
+      showCompletionDialog();
+    } catch (error) {
+      console.error('Error showing completion dialog:', error);
+    }
+  }, 750);
 }
 
 function showCompletionDialog(): void {
   console.log('Showing completion dialog for:', appState.lessonState.piece, appState.lessonState.type);
+  
+  // Verify dialog element exists
+  if (!elements.completionDialog) {
+    console.error('Completion dialog element not found!');
+    return;
+  }
+  
   const currentPieceIndex = pieceOrder.indexOf(appState.lessonState.piece!);
   let nextLessonHandler: () => void;
   let title: string, message: string;
@@ -114,7 +130,10 @@ function showCompletionDialog(): void {
       message = `¡Aprendiste a mover el ${lessonPieces[appState.lessonState.piece!].name}! Ahora, a capturar.`;
       nextLessonHandler = () => {
         appState.lessonState.type = 'capture';
-        loadLesson();
+        console.log('Transitioning to capture lesson');
+        setTimeout(() => {
+          loadLesson();
+        }, 100);
       };
     } else {
       const nextPiece = pieceOrder[currentPieceIndex + 1];
@@ -143,6 +162,10 @@ function showCompletionDialog(): void {
   const closeButton = elements.closeDialogButton;
   const newCloseButton = closeButton.cloneNode(true) as HTMLButtonElement;
   closeButton.parentNode!.replaceChild(newCloseButton, closeButton);
+  
+  // Update the reference in elements
+  elements.closeDialogButton = newCloseButton;
+  
   newCloseButton.addEventListener(
     'click',
     () => {
@@ -367,6 +390,14 @@ function registerEvents(): void {
   elements.boardEl.addEventListener('click', (e) => {
     const clickedSquare = (e.target as HTMLElement).closest('.square') as HTMLElement | null;
     if (!clickedSquare) return;
+    
+    console.log('Board clicked:', {
+      mode: appState.currentMode,
+      lessonInProgress: appState.lessonState.inProgress,
+      hasSelectedSquare: !!appState.selectedSquare,
+      clickedSquare: clickedSquare.dataset,
+      hasHighlight: clickedSquare.classList.contains('highlight')
+    });
 
     if (appState.currentMode === 'lessons') {
       if (!appState.lessonState.inProgress) return;
@@ -374,6 +405,12 @@ function registerEvents(): void {
         const fromSquare = appState.selectedSquare;
         fromSquare.querySelector('.piece')?.classList.remove('selected');
         appState.selectedSquare = null;
+        console.log('Checking move validity:', {
+          hasHighlight: clickedSquare.classList.contains('highlight'),
+          isDifferentSquare: clickedSquare !== fromSquare,
+          fromSquare: fromSquare.dataset,
+          toSquare: clickedSquare.dataset
+        });
         if (clickedSquare.classList.contains('highlight') && clickedSquare !== fromSquare) {
           handleLessonMove(fromSquare, clickedSquare);
         }
@@ -381,6 +418,12 @@ function registerEvents(): void {
         const pieceEl = clickedSquare.querySelector('.piece');
         const c = parseInt(clickedSquare.dataset.col!);
         const r = parseInt(clickedSquare.dataset.row!);
+        console.log('Checking piece selection:', {
+          hasPiece: !!pieceEl,
+          coords: [c, r],
+          lessonPieceCoords: appState.lessonState.pieceCoords,
+          coordsMatch: appState.lessonState.pieceCoords && c === appState.lessonState.pieceCoords[0] && r === appState.lessonState.pieceCoords[1]
+        });
         if (pieceEl && appState.lessonState.pieceCoords && c === appState.lessonState.pieceCoords[0] && r === appState.lessonState.pieceCoords[1]) {
           appState.selectedSquare = clickedSquare;
           (pieceEl as HTMLElement).classList.add('selected');
@@ -445,6 +488,11 @@ function init(): void {
   createBoard();
   setupAuth();
   (document.querySelector('[data-mode="lessons"]') as HTMLButtonElement).click();
+  
+  // Add to window for debugging
+  (window as any).showCompletionDialog = showCompletionDialog;
+  (window as any).appState = appState;
+  (window as any).handleLessonMove = handleLessonMove;
 }
 
 registerEvents();
