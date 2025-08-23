@@ -48,6 +48,7 @@ function loadLesson(): void {
   appState.selectedSquare = null;
   updateLessonNav();
   const lessonData = (lessons as any)[appState.lessonState.piece!][appState.lessonState.type!][0];
+  console.log('Loading lesson:', appState.lessonState.piece, appState.lessonState.type, lessonData);
   appState.lessonState.pieceCoords = lessonData.piece;
   const pieceSquare = document.querySelector(`[data-col='${lessonData.piece[0]}'][data-row='${lessonData.piece[1]}']`) as HTMLElement;
   pieceSquare.innerHTML = `<span class="piece">${lessonPieces[appState.lessonState.piece!].symbol}</span>`;
@@ -63,14 +64,34 @@ function loadLesson(): void {
 }
 
 function handleLessonMove(fromSquare: HTMLElement, toSquare: HTMLElement): void {
+  console.log('Handling lesson move:', appState.lessonState.piece, appState.lessonState.type);
+  
   toSquare.innerHTML = fromSquare.innerHTML;
   fromSquare.innerHTML = '';
   appState.lessonState.inProgress = false;
   document.querySelectorAll('.highlight').forEach((sq) => (sq as HTMLElement).classList.remove('highlight'));
-  setTimeout(showCompletionDialog, 750);
+  console.log('Move completed, showing dialog in 750ms');
+  
+  // Use a more robust approach to ensure the dialog shows
+  setTimeout(() => {
+    try {
+      console.log('About to show completion dialog');
+      showCompletionDialog();
+    } catch (error) {
+      console.error('Error showing completion dialog:', error);
+    }
+  }, 750);
 }
 
 function showCompletionDialog(): void {
+  console.log('Showing completion dialog for:', appState.lessonState.piece, appState.lessonState.type);
+  
+  // Verify dialog element exists
+  if (!elements.completionDialog) {
+    console.error('Completion dialog element not found!');
+    return;
+  }
+  
   const currentPieceIndex = pieceOrder.indexOf(appState.lessonState.piece!);
   let nextLessonHandler: () => void;
   let title: string, message: string;
@@ -100,7 +121,10 @@ function showCompletionDialog(): void {
       message = `¡Aprendiste a mover el ${lessonPieces[appState.lessonState.piece!].name}! Ahora, a capturar.`;
       nextLessonHandler = () => {
         appState.lessonState.type = 'capture';
-        loadLesson();
+        console.log('Transitioning to capture lesson');
+        setTimeout(() => {
+          loadLesson();
+        }, 100);
       };
     } else {
       const nextPiece = pieceOrder[currentPieceIndex + 1];
@@ -126,17 +150,18 @@ function showCompletionDialog(): void {
   elements.dialogTitle.textContent = title;
   elements.dialogMessage.textContent = message;
 
+  // Remove all existing click handlers from close button
   const closeButton = elements.closeDialogButton;
   const newCloseButton = closeButton.cloneNode(true) as HTMLButtonElement;
   closeButton.parentNode!.replaceChild(newCloseButton, closeButton);
-  newCloseButton.addEventListener(
-    'click',
-    () => {
-      elements.completionDialog.classList.add('hidden');
-      if (!isFinalLesson) nextLessonHandler();
-    },
-    { once: true },
-  );
+  
+  // Update the reference in elements
+  elements.closeDialogButton = newCloseButton;
+  
+  newCloseButton.addEventListener('click', () => {
+    elements.completionDialog.classList.add('hidden');
+    if (!isFinalLesson) nextLessonHandler();
+  });
 
   elements.completionDialog.classList.remove('hidden');
 }
@@ -351,8 +376,20 @@ function registerEvents(): void {
   });
 
   elements.boardEl.addEventListener('click', (e) => {
-    const clickedSquare = (e.target as HTMLElement).closest('.square') as HTMLElement | null;
+    const target = e.target as HTMLElement;
+    // Make sure we get the square element, not a child element like a piece
+    const clickedSquare = target.closest('.square') as HTMLElement | null;
     if (!clickedSquare) return;
+    
+    console.log('Board clicked:', {
+      mode: appState.currentMode,
+      lessonInProgress: appState.lessonState.inProgress,
+      hasSelectedSquare: !!appState.selectedSquare,
+      clickedSquare: clickedSquare.dataset,
+      hasHighlight: clickedSquare.classList.contains('highlight'),
+      targetElement: target.tagName,
+      targetClasses: target.className
+    });
 
     if (appState.currentMode === 'lessons') {
       if (!appState.lessonState.inProgress) return;
@@ -360,6 +397,12 @@ function registerEvents(): void {
         const fromSquare = appState.selectedSquare;
         fromSquare.querySelector('.piece')?.classList.remove('selected');
         appState.selectedSquare = null;
+        console.log('Checking move validity:', {
+          hasHighlight: clickedSquare.classList.contains('highlight'),
+          isDifferentSquare: clickedSquare !== fromSquare,
+          fromSquare: fromSquare.dataset,
+          toSquare: clickedSquare.dataset
+        });
         if (clickedSquare.classList.contains('highlight') && clickedSquare !== fromSquare) {
           handleLessonMove(fromSquare, clickedSquare);
         }
@@ -367,6 +410,12 @@ function registerEvents(): void {
         const pieceEl = clickedSquare.querySelector('.piece');
         const c = parseInt(clickedSquare.dataset.col!);
         const r = parseInt(clickedSquare.dataset.row!);
+        console.log('Checking piece selection:', {
+          hasPiece: !!pieceEl,
+          coords: [c, r],
+          lessonPieceCoords: appState.lessonState.pieceCoords,
+          coordsMatch: appState.lessonState.pieceCoords && c === appState.lessonState.pieceCoords[0] && r === appState.lessonState.pieceCoords[1]
+        });
         if (pieceEl && appState.lessonState.pieceCoords && c === appState.lessonState.pieceCoords[0] && r === appState.lessonState.pieceCoords[1]) {
           appState.selectedSquare = clickedSquare;
           (pieceEl as HTMLElement).classList.add('selected');
@@ -422,15 +471,21 @@ function registerEvents(): void {
     }
   });
 
-  elements.closeDialogButton.addEventListener('click', () => {
-    elements.completionDialog.classList.add('hidden');
-  });
+  // Remove this global handler - we handle close button dynamically in showCompletionDialog
+  // elements.closeDialogButton.addEventListener('click', () => {
+  //   elements.completionDialog.classList.add('hidden');
+  // });
 }
 
 function init(): void {
   createBoard();
   setupAuth();
   (document.querySelector('[data-mode="lessons"]') as HTMLButtonElement).click();
+  
+  // Add to window for debugging
+  (window as any).showCompletionDialog = showCompletionDialog;
+  (window as any).appState = appState;
+  (window as any).handleLessonMove = handleLessonMove;
 }
 
 registerEvents();
